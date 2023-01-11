@@ -30,8 +30,11 @@ impl FixMessageBuilder {
         let source_check_sum = tags.get(FIX_CHECK_SUM);
 
         if version.is_none() {
-
-            println!("Tag not found: {:?}. Str: {}", payload.clone(), String::from_utf8(payload.clone().to_vec()).unwrap());
+            println!(
+                "Tag not found: {:?}. Str: {}",
+                payload.clone(),
+                String::from_utf8(payload.clone().to_vec()).unwrap()
+            );
 
             return Err(FixSerializeError::VersionTagNotFoundInSource);
         }
@@ -53,7 +56,7 @@ impl FixMessageBuilder {
         let to_skip = vec![FIX_BODY_LEN, FIX_VERSION, FIX_CHECK_SUM];
 
         for (tag, value) in &tags {
-            if to_skip.contains(&tag.as_slice())  {
+            if to_skip.contains(&tag.as_slice()) {
                 continue;
             }
 
@@ -82,7 +85,6 @@ impl FixMessageBuilder {
     }
 
     pub fn get_value(&self, key: Vec<u8>) -> Option<&Vec<u8>> {
-
         for (inner_key, value) in self.data.values() {
             if inner_key == &key {
                 return Some(value);
@@ -119,7 +121,10 @@ impl FixMessageBuilder {
     pub fn with_value(&mut self, key: i32, value: &str) {
         self.data.insert(
             self.get_last_index(),
-            (key.to_string().as_bytes().to_vec(), value.as_bytes().to_vec())
+            (
+                key.to_string().as_bytes().to_vec(),
+                value.as_bytes().to_vec(),
+            ),
         );
     }
 
@@ -171,8 +176,8 @@ impl FixMessageBuilder {
         return (body.len(), body);
     }
 
-    fn get_last_index(&self) -> u32{
-        return match self.data.keys().last(){
+    fn get_last_index(&self) -> u32 {
+        return match self.data.keys().last() {
             Some(last_index) => last_index.clone() + 1,
             None => 0,
         };
@@ -236,7 +241,6 @@ mod test {
 
     #[test]
     fn test_no_check_sum_with_validation() {
-        
         let fix_string =
             b"8=FIX.4.49=7535=A108=6034=109249=TESTBUY152=20180920-18:24:59.64356=TESTSELL198=0";
         let builder = FixMessageBuilder::from_bytes(fix_string, true);
@@ -264,7 +268,7 @@ mod test {
         assert_eq!(false, builder.is_err());
     }
 
-     #[test]
+    #[test]
     fn test_invalid_fix_check_sum() {
         let fix_string = b"8=FIX.4.49=7535=A108=6034=109249=TESTBUY152=20180920-18:24:59.64356=TESTSELL198=010=188";
         let builder = FixMessageBuilder::from_bytes(fix_string, true);

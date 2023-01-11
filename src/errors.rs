@@ -1,7 +1,7 @@
 #[derive(Debug)]
-pub enum FixSerializeError{
+pub enum FixSerializeError {
     VersionTagNotFoundInSource,
     MessageTypeTagNotFoundInSource,
     CheckSumTagNotFoundInSource,
-    InvalidCheckSum
+    InvalidCheckSum,
 }

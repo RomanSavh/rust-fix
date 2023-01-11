@@ -1,10 +1,11 @@
 use crate::FixSerializeError;
 
-pub trait FixDeserializeModel{
+pub trait FixDeserializeModel {
     fn deserialize_fix(&self) -> Vec<u8>;
 }
 
-pub trait FixSerializeModel{
+pub trait FixSerializeModel {
     fn serialize_fix<T>(payload: &[u8]) -> Result<T, FixSerializeError>
-    where T: FixSerializeModel;
+    where
+        T: FixSerializeModel;
 }
