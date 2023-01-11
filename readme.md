@@ -1,6 +1,6 @@
 # Rust-fix
 
-A simple implementation of FIX builder for Rust.
+A simple implementation of FIX protocol builder for Rust.
 
 - Auto calculate of body len and check sum
 - Checksum validation
