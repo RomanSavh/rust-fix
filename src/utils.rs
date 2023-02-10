@@ -37,15 +37,21 @@ pub fn bytes_to_fix_string(data: &[u8]) -> String {
     return String::from_utf8(str).unwrap();
 }
 
-pub fn split_fix_to_tags(fix: &[u8]) -> HashMap<Vec<u8>, Vec<u8>> {
-    let mut result = HashMap::new();
+pub fn split_fix_to_tags(fix: &[u8]) -> HashMap<Vec<u8>, Vec<Vec<u8>>> {
+    let mut result: HashMap<Vec<u8>, Vec<Vec<u8>>> = HashMap::new();
     let mut key_buffer = Vec::new();
     let mut value_buffer = Vec::new();
     let mut is_equals_raised = false;
 
     for byte in fix {
         if byte == &FIX_DELIMETR {
-            result.insert(key_buffer.clone(), value_buffer.clone());
+
+            if let Some(data_to_insert) = result.get_mut(&key_buffer){
+                data_to_insert.push(value_buffer.clone());
+            } else {
+                result.insert(key_buffer.clone(), vec![value_buffer.clone()]);
+            }
+
             key_buffer.clear();
             value_buffer.clear();
             is_equals_raised = false;

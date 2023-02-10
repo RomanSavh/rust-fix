@@ -46,23 +46,25 @@ impl FixMessageBuilder {
         }
 
         let mut result = Self {
-            fix_version: version.unwrap().clone(),
-            message_type: message_type.unwrap().clone(),
+            fix_version: version.unwrap().first().unwrap().clone(),
+            message_type: message_type.unwrap().first().unwrap().clone(),
             data: vec![],
         };
 
         let to_skip = vec![FIX_BODY_LEN, FIX_VERSION, FIX_CHECK_SUM];
 
-        for (tag, value) in &tags {
-            if to_skip.contains(&tag.as_slice()) {
-                continue;
+        for (tag, values) in &tags {
+            for value in values{
+                if to_skip.contains(&tag.as_slice()) {
+                    continue;
+                }
+    
+                result.with_value_as_bytes(tag.clone(), value.clone())
             }
-
-            result.with_value_as_bytes(tag.clone(), value.clone());
         }
 
         if check_sum_validation {
-            if source_check_sum.unwrap() != &result.calculate_check_sum().as_bytes().to_vec() {
+            if source_check_sum.unwrap().first().unwrap() != &result.calculate_check_sum().as_bytes().to_vec() {
                 return Err(FixSerializeError::InvalidCheckSum);
             }
         }
