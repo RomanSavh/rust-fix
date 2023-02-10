@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use crate::{
     split_fix_to_tags,
     utils::{bytes_to_fix_string, calculate_check_sum, compile_fix_chunk},
@@ -15,7 +13,7 @@ pub const FIX_MESSAGE_TYPE: &[u8] = b"35";
 pub struct FixMessageBuilder {
     fix_version: Vec<u8>,
     message_type: Vec<u8>,
-    data: BTreeMap<u32, (Vec<u8>, Vec<u8>)>,
+    data: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
 impl FixMessageBuilder {
@@ -50,7 +48,7 @@ impl FixMessageBuilder {
         let mut result = Self {
             fix_version: version.unwrap().clone(),
             message_type: message_type.unwrap().clone(),
-            data: BTreeMap::new(),
+            data: vec![],
         };
 
         let to_skip = vec![FIX_BODY_LEN, FIX_VERSION, FIX_CHECK_SUM];
@@ -76,7 +74,7 @@ impl FixMessageBuilder {
         return Self {
             fix_version: version.as_bytes().to_vec(),
             message_type: message_type.as_bytes().to_vec(),
-            data: BTreeMap::new(),
+            data: vec![],
         };
     }
 
@@ -85,7 +83,7 @@ impl FixMessageBuilder {
     }
 
     pub fn get_value(&self, key: Vec<u8>) -> Option<&Vec<u8>> {
-        for (inner_key, value) in self.data.values() {
+        for (inner_key, value) in &self.data {
             if inner_key == &key {
                 return Some(value);
             }
@@ -94,12 +92,24 @@ impl FixMessageBuilder {
         return None;
     }
 
+    pub fn get_values(&self, key: Vec<u8>) -> Vec<&Vec<u8>> {
+        let mut result = vec![];
+
+        for (inner_key, value) in &self.data {
+            if inner_key == &key {
+                result.push(value)
+            }
+        }
+
+        return result;
+    }
+
     pub fn get_message_type(&self) -> &Vec<u8> {
         return &self.message_type;
     }
 
     pub fn get_value_as_string(&self, key: Vec<u8>) -> Option<String> {
-        for (inner_key, value) in self.data.values() {
+        for (inner_key, value) in &self.data {
             if inner_key == &key {
                 return Some(String::from_utf8(value.clone()).unwrap());
             }
@@ -108,8 +118,19 @@ impl FixMessageBuilder {
         return None;
     }
 
+    pub fn get_values_as_string(&self, key: Vec<u8>) -> Vec<String> {
+        let mut result = vec![];
+        for (inner_key, value) in &self.data {
+            if inner_key == &key {
+                result.push(String::from_utf8(value.clone()).unwrap());
+            }
+        }
+
+        return result;
+    }
+
     pub fn get_value_string(&self, key: &str) -> Option<String> {
-        for (inner_key, value) in self.data.values() {
+        for (inner_key, value) in &self.data {
             if inner_key == &key.as_bytes() {
                 return Some(String::from_utf8(value.clone()).unwrap());
             }
@@ -118,9 +139,19 @@ impl FixMessageBuilder {
         return None;
     }
 
+    pub fn get_values_string(&self, key: &str) -> Vec<String> {
+        let mut result = vec![];
+        for (inner_key, value) in &self.data {
+            if inner_key == &key.as_bytes() {
+                result.push(String::from_utf8(value.clone()).unwrap());
+            }
+        }
+
+        return result;
+    }
+
     pub fn with_value(&mut self, key: i32, value: &str) {
-        self.data.insert(
-            self.get_last_index(),
+        self.data.push(
             (
                 key.to_string().as_bytes().to_vec(),
                 value.as_bytes().to_vec(),
@@ -129,7 +160,7 @@ impl FixMessageBuilder {
     }
 
     fn with_value_as_bytes(&mut self, key: Vec<u8>, value: Vec<u8>) {
-        self.data.insert(self.get_last_index(), (key, value));
+        self.data.push((key, value));
     }
 
     fn compile_message(&self) -> Vec<u8> {
@@ -168,19 +199,12 @@ impl FixMessageBuilder {
     fn compile_body(&self) -> (usize, Vec<u8>) {
         let mut body: Vec<u8> = compile_fix_chunk(FIX_MESSAGE_TYPE, &self.message_type);
 
-        for (_, (key, value)) in &self.data {
+        for (key, value) in &self.data {
             let data_to_insert = compile_fix_chunk(key, value);
             body.extend_from_slice(&data_to_insert)
         }
 
         return (body.len(), body);
-    }
-
-    fn get_last_index(&self) -> u32 {
-        return match self.data.keys().last() {
-            Some(last_index) => last_index.clone() + 1,
-            None => 0,
-        };
     }
 }
 
@@ -295,5 +319,44 @@ mod test {
         let fix_to_assert = fix_builder.as_bytes();
 
         assert_eq!(fix_string, fix_to_assert.as_slice());
+    }
+
+    #[test]
+    fn test_few_values_with_same_tag() {
+        let fix_string = b"8=FIX.4.49=8735=A34=109249=TESTBUY149=TESTBUY252=20180920-18:24:59.64356=TESTSELL198=0108=6010=194";
+
+        let mut fix_builder = FixMessageBuilder::new("FIX.4.4", "A");
+        fix_builder.with_value(34, &"1092".to_string());
+        fix_builder.with_value(49, &"TESTBUY1".to_string());
+        fix_builder.with_value(49, &"TESTBUY2".to_string());
+        fix_builder.with_value(52, &"20180920-18:24:59.643".to_string());
+        fix_builder.with_value(56, &"TESTSELL1".to_string());
+        fix_builder.with_value(98, &"0".to_string());
+        fix_builder.with_value(108, &"60".to_string());
+        let fix_to_assert = fix_builder.as_bytes();
+
+        assert_eq!(fix_string, fix_to_assert.as_slice());
+    }
+
+    #[test]
+    fn test_get_few_values_with_same_tag() {
+        let fix_string = b"8=FIX.4.49=8735=A34=109249=TESTBUY149=TESTBUY252=20180920-18:24:59.64356=TESTSELL198=0108=6010=194";
+
+        let mut fix_builder = FixMessageBuilder::new("FIX.4.4", "A");
+        fix_builder.with_value(34, &"1092".to_string());
+        fix_builder.with_value(49, &"TESTBUY1".to_string());
+        fix_builder.with_value(49, &"TESTBUY2".to_string());
+        fix_builder.with_value(52, &"20180920-18:24:59.643".to_string());
+        fix_builder.with_value(56, &"TESTSELL1".to_string());
+        fix_builder.with_value(98, &"0".to_string());
+        fix_builder.with_value(108, &"60".to_string());
+        let fix_to_assert = fix_builder.as_bytes();
+
+        assert_eq!(fix_string, fix_to_assert.as_slice());
+        let tag49 = fix_builder.get_values_string("49");
+        assert_eq!(2, tag49.len());
+        assert_eq!("TESTBUY1", tag49[0]);
+        assert_eq!("TESTBUY2", tag49[1]);
+
     }
 }
