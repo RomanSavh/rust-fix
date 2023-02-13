@@ -23,11 +23,7 @@ impl FixMessageBuilder {
     ) -> Result<Self, FixSerializeError> {
         let tags = split_fix_to_tags(payload);
 
-        let version = tags.get(FIX_VERSION);
-        let message_type = tags.get(FIX_MESSAGE_TYPE);
-        let source_check_sum = tags.get(FIX_CHECK_SUM);
-
-        if version.is_none() {
+        let Some(version) = tags.get(FIX_VERSION) else{
             println!(
                 "Tag not found: {:?}. Str: {}",
                 payload.clone(),
@@ -35,36 +31,43 @@ impl FixMessageBuilder {
             );
 
             return Err(FixSerializeError::VersionTagNotFoundInSource);
-        }
+        };
 
-        if message_type.is_none() {
-            return Err(FixSerializeError::MessageTypeTagNotFoundInSource);
-        }
+        let Some(message_type) = tags.get(FIX_MESSAGE_TYPE) else{
+            return Err(FixSerializeError::MessageTypeTagNotFoundInSource)
+        };
+
+        let source_check_sum = tags.get(FIX_CHECK_SUM);
 
         if check_sum_validation == true && source_check_sum.is_none() {
             return Err(FixSerializeError::CheckSumTagNotFoundInSource);
         }
 
+        let version = version.first().unwrap();
+        let message_type = message_type.first().unwrap();
+
         let mut result = Self {
-            fix_version: version.unwrap().first().unwrap().clone(),
-            message_type: message_type.unwrap().first().unwrap().clone(),
+            fix_version: version.clone(),
+            message_type: message_type.clone(),
             data: vec![],
         };
 
         let to_skip = vec![FIX_BODY_LEN, FIX_VERSION, FIX_CHECK_SUM];
 
         for (tag, values) in &tags {
-            for value in values{
+            for value in values {
                 if to_skip.contains(&tag.as_slice()) {
                     continue;
                 }
-    
+
                 result.with_value_as_bytes(tag.clone(), value.clone())
             }
         }
 
         if check_sum_validation {
-            if source_check_sum.unwrap().first().unwrap() != &result.calculate_check_sum().as_bytes().to_vec() {
+            if source_check_sum.unwrap().first().unwrap()
+                != &result.calculate_check_sum().as_bytes().to_vec()
+            {
                 return Err(FixSerializeError::InvalidCheckSum);
             }
         }
@@ -110,6 +113,10 @@ impl FixMessageBuilder {
         return &self.message_type;
     }
 
+    pub fn get_message_type_as_string(&self) -> String {
+        return String::from_utf8(self.message_type.clone()).unwrap();
+    }
+
     pub fn get_value_as_string(&self, key: Vec<u8>) -> Option<String> {
         for (inner_key, value) in &self.data {
             if inner_key == &key {
@@ -153,12 +160,10 @@ impl FixMessageBuilder {
     }
 
     pub fn with_value(&mut self, key: i32, value: &str) {
-        self.data.push(
-            (
-                key.to_string().as_bytes().to_vec(),
-                value.as_bytes().to_vec(),
-            ),
-        );
+        self.data.push((
+            key.to_string().as_bytes().to_vec(),
+            value.as_bytes().to_vec(),
+        ));
     }
 
     fn with_value_as_bytes(&mut self, key: Vec<u8>, value: Vec<u8>) {
@@ -359,6 +364,5 @@ mod test {
         assert_eq!(2, tag49.len());
         assert_eq!("TESTBUY1", tag49[0]);
         assert_eq!("TESTBUY2", tag49[1]);
-
     }
 }
